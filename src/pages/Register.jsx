@@ -160,10 +160,22 @@ export default function Register() {
 
       <div className="relative w-full max-w-2xl">
         <Link to="/" className="inline-flex items-center gap-2 mb-8">
+         <div className="flex items-center gap-2.5">
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-cyan-glow grid place-items-center shadow-glow">
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
-          <div className="font-display font-semibold text-lg">Trustline</div>
+
+          <div>
+            <div className="font-display font-semibold text-lg leading-none">
+              Trustline
+            </div>
+
+            <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+              Trust Infrastructure
+            </div>
+          </div>
+        </div>
+
         </Link>
 
         {/* Stepper Header */}

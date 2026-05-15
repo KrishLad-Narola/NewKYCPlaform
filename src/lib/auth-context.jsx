@@ -8,14 +8,12 @@ export function AuthProvider({ children }) {
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Helper to get tokens
   const getTokens = () => {
     const accessToken = localStorage.getItem("accessToken");
     const refreshToken = localStorage.getItem("refreshToken");
     return { accessToken, refreshToken };
   };
 
-  // Fetch user data using the access token
   const fetchUserProfile = async (token) => {
     try {
       const response = await axiosInstance.get("/auth/me");
@@ -34,7 +32,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // On initial mount, check if tokens exist and fetch profile
   useEffect(() => {
     const { accessToken } = getTokens();
     if (accessToken) {
@@ -44,23 +41,34 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // LOGIN: Store only tokens, then fetch profile
-  const login = async (payload) => {
-    // payload should contain: { accessToken, refreshToken }
+    const login = async (payload) => {
     localStorage.setItem("accessToken", payload.accessToken);
     localStorage.setItem("refreshToken", payload.refreshToken);
 
-    // After setting tokens, fetch the actual user data
     await fetchUserProfile(payload.accessToken);
   };
 
-  // LOGOUT: Clear tokens and state
-  const logout = () => {
+const logout = async () => {
+  try {
+    const refreshToken =
+      localStorage.getItem("refreshToken");
+
+    await axiosInstance.post("/auth/logout", {
+      refreshToken,
+    });
+
+  } catch (error) {
+    console.error("Logout API error:", error);
+  } finally {
     setUser(null);
     setBusiness(null);
+
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-  };
+
+    window.location.href = "/";
+  }
+};
 
   return (
     <Ctx.Provider
@@ -71,7 +79,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         isAuthenticated: !!user,
-        loading, // Useful for showing a splash screen while fetching profile
+        loading, 
       }}
     >
       {!loading && children}
