@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
     }
   });
 
-  // BUSINESS
+
   const [business, setBusiness] = useState(() => {
     try {
       const storedBusiness = localStorage.getItem("business");
