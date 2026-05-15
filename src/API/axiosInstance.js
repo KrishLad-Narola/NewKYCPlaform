@@ -22,25 +22,16 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ======================
-// RESPONSE INTERCEPTOR
-// ======================
 
 axiosInstance.interceptors.response.use(
-  // SUCCESS RESPONSE
   (response) => {
-    // Return only backend payload
     return response.data;
   },
 
-  // ERROR RESPONSE
   async (error) => {
     const originalRequest = error.config;
 
-    // ======================
-    // NETWORK ERROR
-    // ======================
-
+ 
     if (!error.response) {
       toast.error("Network error. Please check your internet.");
 
@@ -49,9 +40,7 @@ axiosInstance.interceptors.response.use(
 
     const status = error.response.status;
 
-    // ======================
-    // AUTH ROUTES
-    // ======================
+  
 
     const isAuthRoute =
       originalRequest.url.includes("/auth/login") ||
@@ -61,9 +50,7 @@ axiosInstance.interceptors.response.use(
       originalRequest.url.includes("/auth/reset-password") ||
       originalRequest.url.includes("/auth/verify-email");
 
-    // ======================
-    // TOKEN REFRESH LOGIC
-    // ======================
+   
 
     if (
       status === 401 &&
@@ -75,7 +62,6 @@ axiosInstance.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem("refreshToken");
 
-        // No refresh token
         if (!refreshToken) {
           localStorage.clear();
 
@@ -86,7 +72,6 @@ axiosInstance.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        // Refresh token request
         const response = await axios.post(
           "http://192.168.100.149:3000/api/v1/auth/refresh",
           {
@@ -97,17 +82,14 @@ axiosInstance.interceptors.response.use(
         const newAccessToken =
           response.data?.data?.accessToken;
 
-        // Save new token
         localStorage.setItem(
           "accessToken",
           newAccessToken
         );
 
-        // Update authorization header
         originalRequest.headers.Authorization =
           `Bearer ${newAccessToken}`;
 
-        // Retry original request
         return axiosInstance(originalRequest);
 
       } catch (refreshError) {

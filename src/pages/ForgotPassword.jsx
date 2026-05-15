@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import axiosInstance from "@/API/axiosInstance";
 import { z } from "zod";
 
-// Zod schema
 const forgotPasswordSchema = z.object({
   email: z
     .string()

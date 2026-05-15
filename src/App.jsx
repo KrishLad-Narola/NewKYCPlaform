@@ -29,21 +29,18 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyEmail from "./pages/Verifyemail";
 import ResetPassword from "./pages/ResetPassword";
+import PublicRoutes from "./routes/PublicRoutes";
+import ChangePassword from "./pages/ChnagePassword";
 
 function NotFoundPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-
-        <h2 className="mt-4 text-xl font-semibold text-foreground">
-          Page not found
-        </h2>
-
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
-
         <div className="mt-6">
           <Link
             to="/"
@@ -59,25 +56,28 @@ function NotFoundPage() {
 
 function ProtectedRoute() {
   const { isAuthenticated } = useAuth();
-
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
+  } else {
+    return <Outlet />;
   }
-
-  return <Outlet />;
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route element={<PublicRoutes />}>
+        <Route path="/" element={<Landing />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+      </Route>
 
       <Route element={<ProtectedRoute />}>
         <Route path="/profile/:id" element={<ProfilePage />} />
+        
+        <Route path="/change-password" element={<ChangePassword />} />
 
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardHome />} />
@@ -110,9 +110,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppRoutes />
-
       <RoleSwitcher />
-
       <Toaster
         theme="light"
         position="top-right"

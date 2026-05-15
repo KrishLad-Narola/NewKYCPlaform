@@ -12,7 +12,6 @@ import axios from "axios";
 import { toast } from "sonner";
 import { z } from "zod";
 
-// ================= ZOD SCHEMA =================
 const resetPasswordSchema = z
     .object({
         password: z
@@ -102,12 +101,12 @@ export default function ResetPassword() {
 
     return (
         <div className="min-h-screen relative overflow-hidden">
-            {/* Background */}
+
             <div className="absolute inset-0 grid-bg opacity-40" />
             <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-primary/30 blur-[140px]" />
             <div className="absolute -bottom-40 -right-40 h-[500px] w-[500px] rounded-full bg-cyan-glow/20 blur-[140px]" />
 
-            {/* Header */}
+
             <header className="relative z-10 px-6 lg:px-12 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                     <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-cyan-glow grid place-items-center shadow-glow">

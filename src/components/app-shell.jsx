@@ -6,7 +6,9 @@ import {
   LayoutDashboard, FileCheck2, Gauge, Handshake, Building2, Share2, ScrollText, Settings,
   Users, ShieldCheck, AlertOctagon, ClipboardList, BarChart3,
   Globe2, Bell, Search, User, LogOut,
+  Lock,
 } from "lucide-react";
+import ChangePassword from "@/pages/ChnagePassword";
 
 const businessNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -33,7 +35,7 @@ export function AppShell({ kind, children }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  const { user, logout, business } = useAuth();
+  const { user, business, logout } = useAuth();
 
   const nav = kind === "admin" ? adminNav : businessNav;
 
@@ -50,6 +52,12 @@ export function AppShell({ kind, children }) {
     logout?.();               
     setProfileOpen(false);    
     navigate("/");
+  };
+
+
+  const handleChangePassword = () => {
+    setProfileOpen(false);
+    navigate("/change-password");
   };
 
   return (
@@ -123,7 +131,6 @@ export function AppShell({ kind, children }) {
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-cyan-glow" />
             </button>
 
-            {/* Profile */}
             <div className="relative">
 
               <button
@@ -149,6 +156,13 @@ export function AppShell({ kind, children }) {
                     Logout
                   </button>
 
+                  <button 
+                     onClick={handleChangePassword}
+                     className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700 border-b"
+                   >
+                    <Lock  className="h-4 w-4" />
+                    Change Password 
+                   </button>
                 </div>
               )}
 

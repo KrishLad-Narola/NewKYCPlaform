@@ -1,80 +1,88 @@
-import { createContext, useContext, useState } from "react";
+import axiosInstance from "@/API/axiosInstance";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const Ctx = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
+  const [user, setUser] = useState(null);
+  const [business, setBusiness] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-      if (!storedUser || storedUser === "undefined") {
-        localStorage.removeItem("user");
-        return null;
-      }
-
-      return JSON.parse(storedUser);
-    } catch (error) {
-      localStorage.removeItem("user");
-      return null;
-    }
-  });
-
-
-  const [business, setBusiness] = useState(() => {
-    try {
-      const storedBusiness = localStorage.getItem("business");
-
-      if (!storedBusiness || storedBusiness === "undefined") {
-        localStorage.removeItem("business");
-        return null;
-      }
-
-      return JSON.parse(storedBusiness);
-    } catch (error) {
-      localStorage.removeItem("business");
-      return null;
-    }
-  });
-
-  // LOGIN
-  const login = (payload) => {
-    setUser(payload.user);
-    setBusiness(payload.business);
-
-    localStorage.setItem("user", JSON.stringify(payload.user));
-    localStorage.setItem("business", JSON.stringify(payload.business));
+  // Helper to get tokens
+  const getTokens = () => {
+    const accessToken = localStorage.getItem("accessToken");
+    const refreshToken = localStorage.getItem("refreshToken");
+    return { accessToken, refreshToken };
   };
 
-  // LOGOUT
+  // Fetch user data using the access token
+  const fetchUserProfile = async (token) => {
+    try {
+      const response = await axiosInstance.get("/auth/me");
+      if (response.status === 200) {
+        const data = response.data;
+        setUser(data.user);
+        setBusiness(data.business);
+      } else {
+        logout();
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+      logout();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // On initial mount, check if tokens exist and fetch profile
+  useEffect(() => {
+    const { accessToken } = getTokens();
+    if (accessToken) {
+      fetchUserProfile(accessToken);
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  // LOGIN: Store only tokens, then fetch profile
+  const login = async (payload) => {
+    // payload should contain: { accessToken, refreshToken }
+    localStorage.setItem("accessToken", payload.accessToken);
+    localStorage.setItem("refreshToken", payload.refreshToken);
+
+    // After setting tokens, fetch the actual user data
+    await fetchUserProfile(payload.accessToken);
+  };
+
+  // LOGOUT: Clear tokens and state
   const logout = () => {
     setUser(null);
     setBusiness(null);
-
-    localStorage.removeItem("user");
-    localStorage.removeItem("business");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
   };
 
   return (
     <Ctx.Provider
       value={{
+        fetchUserProfile,
         user,
         business,
         login,
         logout,
         isAuthenticated: !!user,
+        loading, // Useful for showing a splash screen while fetching profile
       }}
     >
-      {children}
+      {!loading && children}
     </Ctx.Provider>
   );
 }
 
 export const useAuth = () => {
   const context = useContext(Ctx);
-
   if (!context) {
     throw new Error("AuthProvider missing");
   }
-
   return context;
 };

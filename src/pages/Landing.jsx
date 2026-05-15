@@ -53,36 +53,28 @@ export default function Landing() {
         password: pw,
       });
       setErrors({});
+
       const response = await axiosInstance.post(
         "http://192.168.100.149:3000/api/v1/auth/login",
         validatedData
       );
-
-      const {accessToken,refreshToken,user,business,} = response.data;
-
-      localStorage.setItem("accessToken",accessToken);
-      localStorage.setItem("refreshToken",refreshToken);
-      localStorage.setItem("user",JSON.stringify(user));
-      login({ user, business });
-      toast.success(response.data.message ||"Login successful");
+      
+      const { accessToken, refreshToken } = response.data;
+      await login({ accessToken, refreshToken });
+      toast.success(response.data.message || "Login successful");
       navigate("/dashboard");
-    } catch (error) {
-      console.log(error);
-
+    }
+    catch (error) {
+      console.error(error);
 
       if (error instanceof z.ZodError) {
         const fieldErrors = {};
-
         error.errors.forEach((err) => {
           fieldErrors[err.path[0]] = err.message;
         });
-
         setErrors(fieldErrors);
-
         return;
       }
-                  
-      // toast.error(error?.response?.data?.message ||"Login failed");
     }
   };
 
@@ -143,7 +135,7 @@ export default function Landing() {
             Register business
           </Link>
 
-          
+
         </div>
       </header>
 
@@ -302,11 +294,10 @@ export default function Landing() {
                       setEmail(e.target.value)
                     }
                     className={`w-full pl-11 pr-4 py-3 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none focus:ring-2
-                    ${
-                      errors.email
+                    ${errors.email
                         ? "border-red-500 focus:ring-red-500/20"
                         : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-primary/20"
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -339,11 +330,10 @@ export default function Landing() {
                     }
                     placeholder="Enter password"
                     className={`w-full pl-11 pr-12 py-3 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none focus:ring-2
-                    ${
-                      errors.password
+                    ${errors.password
                         ? "border-red-500 focus:ring-red-500/20"
                         : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-primary/20"
-                    }`}
+                      }`}
                   />
 
                   <button
