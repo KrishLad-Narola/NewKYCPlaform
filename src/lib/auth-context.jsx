@@ -1,5 +1,6 @@
 import axiosInstance from "@/API/axiosInstance";
 import { createContext, useContext, useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 
 const Ctx = createContext(null);
 
@@ -41,34 +42,36 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-    const login = async (payload) => {
+  const login = async (payload) => {
     localStorage.setItem("accessToken", payload.accessToken);
     localStorage.setItem("refreshToken", payload.refreshToken);
 
     await fetchUserProfile(payload.accessToken);
   };
 
-const logout = async () => {
-  try {
-    const refreshToken =
-      localStorage.getItem("refreshToken");
+  const logout = async () => {
+    try {
+      const refreshToken =
+        localStorage.getItem("refreshToken");
 
-    await axiosInstance.post("/auth/logout", {
-      refreshToken,
-    });
+      await axiosInstance.post("/auth/logout", {
+        refreshToken,
+      });
 
-  } catch (error) {
-    console.error("Logout API error:", error);
-  } finally {
-    setUser(null);
-    setBusiness(null);
+    } catch (error) {
+      console.error("Logout API error:", error);
+    } finally {
+      setUser(null);
+      setBusiness(null);
 
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
 
-    window.location.href = "/";
-  }
-};
+      return <Navigate to="/" replace />;
+
+    }
+  };
+  
 
   return (
     <Ctx.Provider
@@ -79,7 +82,7 @@ const logout = async () => {
         login,
         logout,
         isAuthenticated: !!user,
-        loading, 
+        loading,
       }}
     >
       {!loading && children}
