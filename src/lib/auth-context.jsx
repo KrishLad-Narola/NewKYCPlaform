@@ -1,33 +1,56 @@
 import axiosInstance from "@/API/axiosInstance";
-import { createContext, useContext, useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
+import { useNavigate } from "react-router-dom";
 
 const Ctx = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+
   const [business, setBusiness] = useState(null);
+
   const [loading, setLoading] = useState(true);
 
+
+  const navigate = useNavigate();
+
   const getTokens = () => {
-    const accessToken = localStorage.getItem("accessToken");
-    const refreshToken = localStorage.getItem("refreshToken");
-    return { accessToken, refreshToken };
+    return {
+      accessToken:
+        localStorage.getItem("accessToken"),
+      refreshToken:
+        localStorage.getItem("refreshToken"),
+    };
   };
 
-  const fetchUserProfile = async (token) => {
+  const logoutLocal = () => {
+    setUser(null);
+
+    setBusiness(null);
+
+    localStorage.removeItem("accessToken");
+
+    localStorage.removeItem("refreshToken");
+  };
+
+  const fetchUserProfile = async () => {
     try {
-      const response = await axiosInstance.get("/auth/me");
+      const response = await axiosInstance.get(
+        "/auth/me"
+      );
+
       if (response.status === 200) {
-        const data = response.data;
-        setUser(data.user);
-        setBusiness(data.business);
-      } else {
-        logout();
+        setUser(response.data.user);
+
+        setBusiness(response.data.business);
       }
     } catch (error) {
-      console.error("Failed to fetch user profile:", error);
-      logout();
+      logoutLocal();
     } finally {
       setLoading(false);
     }
@@ -35,54 +58,53 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const { accessToken } = getTokens();
+
     if (accessToken) {
-      fetchUserProfile(accessToken);
+      fetchUserProfile();
     } else {
       setLoading(false);
     }
   }, []);
 
   const login = async (payload) => {
-    localStorage.setItem("accessToken", payload.accessToken);
-    localStorage.setItem("refreshToken", payload.refreshToken);
+    localStorage.setItem(
+      "accessToken",
+      payload.accessToken
+    );
 
-    await fetchUserProfile(payload.accessToken);
+    localStorage.setItem(
+      "refreshToken",
+      payload.refreshToken
+    );
+
+    await fetchUserProfile();
   };
 
   const logout = async () => {
     try {
-      const refreshToken =
-        localStorage.getItem("refreshToken");
-
       await axiosInstance.post("/auth/logout", {
-        refreshToken,
+        refreshToken:
+          localStorage.getItem("refreshToken"),
       });
-
     } catch (error) {
-      console.error("Logout API error:", error);
+      console.error(error);
     } finally {
-      setUser(null);
-      setBusiness(null);
+      logoutLocal();
 
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-
-      return <Navigate to="/" replace />;
-
+      navigate("/", { replace: true });
     }
   };
-  
 
   return (
     <Ctx.Provider
       value={{
-        fetchUserProfile,
         user,
         business,
+        loading,
         login,
         logout,
+        fetchUserProfile,
         isAuthenticated: !!user,
-        loading,
       }}
     >
       {!loading && children}
@@ -92,8 +114,12 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => {
   const context = useContext(Ctx);
+
   if (!context) {
-    throw new Error("AuthProvider missing");
+    throw new Error(
+      "useAuth must be used inside AuthProvider"
+    );
   }
+
   return context;
 };

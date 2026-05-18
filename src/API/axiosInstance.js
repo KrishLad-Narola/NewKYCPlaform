@@ -1,5 +1,4 @@
 import axios from "axios";
-import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const axiosInstance = axios.create({
@@ -8,7 +7,6 @@ const axiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
-
 
 axiosInstance.interceptors.request.use(
   (config) => {
@@ -23,7 +21,6 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-
 axiosInstance.interceptors.response.use(
   (response) => {
     return response.data;
@@ -32,16 +29,12 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-
     if (!error.response) {
       toast.error("Network error. Please check your internet.");
-
       return Promise.reject(error);
     }
 
     const status = error.response.status;
-
-
 
     const isAuthRoute =
       originalRequest.url.includes("/auth/login") ||
@@ -66,7 +59,7 @@ axiosInstance.interceptors.response.use(
 
           toast.error("Session expired. Please login again.");
 
-          <Navigate to="/" replace />;
+          window.location.href = "/";
 
           return Promise.reject(error);
         }
@@ -96,13 +89,11 @@ axiosInstance.interceptors.response.use(
 
         toast.error("Session expired. Please login again.");
 
-        <Navigate to="/" replace />;
+        window.location.href = "/";
 
         return Promise.reject(refreshError);
       }
     }
-
-
 
     switch (status) {
       case 400:

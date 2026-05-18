@@ -1,12 +1,23 @@
+import React from "react";
 import { Routes, Route, Link, Navigate, Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
+
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { RoleSwitcher } from "@/components/role-switcher";
 
+/* Public Pages */
 import Landing from "@/pages/Landing";
 import Register from "@/pages/Register";
-import ProfilePage from "@/pages/ProfilePage";
+import ForgotPassword from "@/pages/ForgotPassword";
+import VerifyEmail from "@/pages/Verifyemail";
+import ResetPassword from "@/pages/ResetPassword";
 
+/* Protected Pages */
+import ProfilePage from "@/pages/ProfilePage";
+import ChangePassword from "@/pages/ChnagePassword";
+import KycSubmitPage from "@/pages/KycSubmitPage";
+
+/* Dashboard */
 import DashboardLayout from "@/pages/dashboard/DashboardLayout";
 import DashboardHome from "@/pages/dashboard/DashboardHome";
 import KycPage from "@/pages/dashboard/KycPage";
@@ -17,6 +28,7 @@ import SharedPage from "@/pages/dashboard/SharedPage";
 import AuditPage from "@/pages/dashboard/AuditPage";
 import SettingsPage from "@/pages/dashboard/SettingsPage";
 
+/* Admin */
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminHome from "@/pages/admin/AdminHome";
 import AdminBusinesses from "@/pages/admin/AdminBusinesses";
@@ -26,27 +38,28 @@ import AdminDisputes from "@/pages/admin/AdminDisputes";
 import AdminAudit from "@/pages/admin/AdminAudit";
 import AdminSettings from "@/pages/admin/AdminSettings";
 
-import ForgotPassword from "./pages/ForgotPassword";
-import VerifyEmail from "./pages/Verifyemail";
-import ResetPassword from "./pages/ResetPassword";
 import PublicRoutes from "./routes/PublicRoutes";
-import ChangePassword from "./pages/ChnagePassword";
+
 
 function NotFoundPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <h1 className="text-7xl font-bold text-foreground">
+          404
+        </h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          Page not found
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
         <div className="mt-6">
           <Link
-            to="/"
+            to="/dashboard"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Go to Dashboard
           </Link>
         </div>
       </div>
@@ -54,18 +67,29 @@ function NotFoundPage() {
   );
 }
 
+
 function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
-  } else {
-    return <Outlet />;
   }
+
+  return <Outlet />;
 }
 
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public Routes */}
       <Route element={<PublicRoutes />}>
         <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
@@ -76,8 +100,8 @@ function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/profile/:id" element={<ProfilePage />} />
-        
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/kyc-submit" element={<KycSubmitPage />} />
 
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<DashboardHome />} />
@@ -112,11 +136,12 @@ export default function App() {
       <AppRoutes />
       <RoleSwitcher />
       <Toaster
-        theme="light"
         position="top-right"
         richColors
         closeButton
         expand
+        duration={3000}
+        theme="light"
       />
     </AuthProvider>
   );
