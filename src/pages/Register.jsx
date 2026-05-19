@@ -41,7 +41,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [errors, setErrors] = useState({});
 
-    const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
     companyName: "",
@@ -160,21 +160,21 @@ export default function Register() {
 
       <div className="relative w-full max-w-2xl">
         <Link to="/" className="inline-flex items-center gap-2 mb-8">
-         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-cyan-glow grid place-items-center shadow-glow">
-            <ShieldCheck className="h-5 w-5 text-white" />
-          </div>
-
-          <div>
-            <div className="font-display font-semibold text-lg leading-none">
-              Trustline
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-cyan-glow grid place-items-center shadow-glow">
+              <ShieldCheck className="h-5 w-5 text-white" />
             </div>
 
-            <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-              Trust Infrastructure
+            <div>
+              <div className="font-display font-semibold text-lg leading-none">
+                Trustline
+              </div>
+
+              <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                Trust Infrastructure
+              </div>
             </div>
           </div>
-        </div>
 
         </Link>
 
@@ -268,7 +268,6 @@ export default function Register() {
                   <Input label="First Name" value={form.firstname} onChange={(v) => set("firstname", v)} error={errors?.firstname?.[0]} />
                   <Input label="Last Name" value={form.lastname} onChange={(v) => set("lastname", v)} error={errors?.lastname?.[0]} />
                 </div>
-                <Input label="Email" value={form.email} onChange={(v) => set("email", v)} error={errors?.email?.[0]} />
                 <div className="space-y-4">
                   <Input
                     label="Email"
@@ -296,9 +295,9 @@ export default function Register() {
                   </div>
                 </div>
 
-                 
-                 <div className="space-y-4">
-                  
+
+                <div className="space-y-4">
+
                   <div className="relative">
                     <Input
                       label="Confirm Password"
@@ -317,7 +316,7 @@ export default function Register() {
                     </button>
                   </div>
                 </div>
-              
+
               </>
             )}
           </div>
@@ -382,8 +381,8 @@ function Select({ label, value, onChange, options = [], error }) {
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
           className={`w-full px-4 py-2.5 pr-10 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none appearance-none ${error
-              ? "border-red-500 focus:ring-1 focus:ring-red-500"
-              : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+            ? "border-red-500 focus:ring-1 focus:ring-red-500"
+            : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
             }`}
         >
           <option value="" disabled>

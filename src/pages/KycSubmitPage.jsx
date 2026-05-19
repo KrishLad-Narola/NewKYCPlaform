@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
     UploadCloud,
     Check,
-    ArrowRight,
     ArrowLeft,
-    FileText,
+    ArrowRight,
     X,
-    CircleX,
+    Loader2,
+    ShieldCheck,
+    Clock,
+    Home,
 } from "lucide-react";
 
 import axiosInstance from "@/API/axiosInstance";
@@ -14,81 +16,148 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
-const steps = [
-    "SELECT",
-    "UPLOAD",
-    "OCR",
-    "VALIDATE",
-    "REVIEW",
-    "SUBMIT",
+const DOCUMENT_OPTIONS = [
+    { key: "GST_CERTIFICATE", label: "GST Certificate" },
+    { key: "PAN_CARD", label: "PAN Card" },
+    { key: "INCORPORATION_CERTIFICATE", label: "Incorporation Certificate" },
+    { key: "BANK_PROOF", label: "Bank Proof" },
 ];
+
+const DOC_STEPS = ["Upload", "Review", "Submit"];
+
+const REDIRECT_SECONDS = 5;
 
 export default function KycSubmitPage() {
     const navigate = useNavigate();
     const { fetchUserProfile } = useAuth();
+    const fileInputRef = useRef(null);
 
-    const [currentStep, setCurrentStep] = useState(1);
-    const [loading, setLoading] = useState(false);
+    const [docIndex, setDocIndex] = useState(0);
+    const [docStep, setDocStep] = useState(0);
+
     const [extracting, setExtracting] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
     const [progress, setProgress] = useState(0);
 
-    const [selectedDoc, setSelectedDoc] = useState("gstCertificate");
+    const [file, setFile] = useState(null);
+    const [temporaryUploadId, setTemporaryUploadId] = useState(null);
+    const [extractedData, setExtractedData] = useState(null);
 
-    const [files, setFiles] = useState({
-        gstCertificate: null,
-        incorporationCertificate: null,
-        bankAccount: null,
-        panCard: null,
-    });
+    const [completedDocs, setCompletedDocs] = useState([]);
 
-    const [uploadStatus, setUploadStatus] = useState({
-        gstCertificate: null,
-        incorporationCertificate: null,
-        bankAccount: null,
-        panCard: null,
-    });
+    const [kycComplete, setKycComplete] = useState(false);
+    const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
 
-    const [extractedData, setExtractedData] = useState({
-        gstCertificate: null,
-        incorporationCertificate: null,
-        bankAccount: null,
-        panCard: null,
-    });
+    const countdownRef = useRef(null);
 
-    const documentOptions = [
-        { key: "GST_CERTIFICATE", label: "GST Certificate" },
-        { key: "PAN_CARD", label: "PAN Card" },
-        { key: "INCORPORATION_CERTIFICATE", label: "Incorporation Certificate" },
-        { key: "BANK_PROOF", label: "Bank Proof" },
-    ];
+    const currentDoc = DOCUMENT_OPTIONS[docIndex];
+    const isLastDoc = docIndex === DOCUMENT_OPTIONS.length - 1;
 
-    const handleFileChange = async (file) => {
-        if (!file) return;
+    useEffect(() => {
+        if (!kycComplete) return;
 
-        if (file.size > 10 * 1024 * 1024) {
+        countdownRef.current = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(countdownRef.current);
+                    navigate("/");
+                    return 0;
+                }
+
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(countdownRef.current);
+    }, [kycComplete, navigate]);
+
+    const formatLabel = (key) =>
+        key
+            .replace(/([A-Z])/g, " $1")
+            .replace(/_/g, " ")
+            .replace(/^\s*/, "")
+            .replace(/^./, (s) => s.toUpperCase())
+            .trim();
+
+    const flattenObject = (obj, prefix = "") => {
+        if (!obj || typeof obj !== "object") return [];
+
+        return Object.entries(obj).flatMap(([k, v]) => {
+            const fullKey = prefix ? `${prefix}.${k}` : k;
+
+            if (v && typeof v === "object" && !Array.isArray(v)) {
+                return flattenObject(v, fullKey);
+            }
+
+            return [[fullKey, v]];
+        });
+    };
+
+    const setNestedValue = (obj, path, value) => {
+        const keys = path.split(".");
+        const updated = { ...obj };
+
+        let ref = updated;
+
+        for (let i = 0; i < keys.length - 1; i++) {
+            ref[keys[i]] = { ...ref[keys[i]] };
+            ref = ref[keys[i]];
+        }
+
+        ref[keys[keys.length - 1]] = value;
+
+        return updated;
+    };
+
+    const resetDocState = () => {
+        setFile(null);
+        setTemporaryUploadId(null);
+        setExtractedData(null);
+        setProgress(0);
+        setDocStep(0);
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
+    const handleFileChange = async (e) => {
+        const selected = e.target.files?.[0];
+
+        if (!selected) return;
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+
+        if (selected.size > 10 * 1024 * 1024) {
             toast.error("File size must be less than 10MB");
-            setUploadStatus((p) => ({ ...p, [selectedDoc]: "error" }));
             return;
         }
 
-        setUploadStatus((p) => ({ ...p, [selectedDoc]: "success" }));
-        setFiles((p) => ({ ...p, [selectedDoc]: file }));
+        const allowed = [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "image/jpg",
+        ];
 
-        await extractDocumentData(selectedDoc, file);
-    };
+        if (!allowed.includes(selected.type)) {
+            toast.error("Invalid format. Allowed: PDF, PNG, JPG");
+            return;
+        }
 
-    const extractDocumentData = async (key, file) => {
+        setFile(selected);
+
         try {
             setExtracting(true);
-            setCurrentStep(2);
-
-            toast.loading("Extracting document data...", {
-                id: "extract-doc",
-            });
+            setProgress(0);
 
             const formData = new FormData();
-            formData.append("file", file);
-            formData.append("type", key);
+
+            formData.append("document", selected);
+            formData.append("type", currentDoc.key);
 
             const response = await axiosInstance.post(
                 "/kyc/documents/upload",
@@ -97,243 +166,412 @@ export default function KycSubmitPage() {
                     headers: {
                         "Content-Type": "multipart/form-data",
                     },
-                    onUploadProgress: (e) => {
-                        const percent = Math.round(
-                            (e.loaded * 100) / e.total
+
+                    onUploadProgress: (evt) => {
+                        if (!evt.total) return;
+
+                        setProgress(
+                            Math.round((evt.loaded * 100) / evt.total)
                         );
-                        setProgress(percent);
                     },
                 }
             );
 
-            setCurrentStep(3);
+            const data = response?.data?.data || response?.data || {};
 
-            const extracted = response?.data?.data || {};
+            const uploadId = data.temporaryUploadId;
+            const extracted = data.extractedData || {};
 
-            setExtractedData((prev) => ({
-                ...prev,
-                [key]: extracted,
-            }));
+            if (!uploadId) {
+                throw new Error("No temporaryUploadId returned");
+            }
 
-            setCurrentStep(4);
+            setTemporaryUploadId(uploadId);
+            setExtractedData(extracted);
+            setDocStep(1);
 
-            toast.success("Document extracted", {
-                id: "extract-doc",
-            });
-        } catch (error) {
+            toast.success("Document extracted successfully");
+        } catch (err) {
+            console.error(err);
+
             toast.error(
-                error?.response?.data?.message || "Extraction failed",
-                { id: "extract-doc" }
+                err?.response?.data?.message ||
+                    err?.message ||
+                    "Extraction failed"
             );
 
-            setUploadStatus((p) => ({ ...p, [selectedDoc]: "error" }));
+            setFile(null);
         } finally {
             setExtracting(false);
             setProgress(0);
         }
     };
 
-    const validateDocuments = () => {
-        if (
-            !files.gstCertificate ||
-            !files.incorporationCertificate ||
-            !files.bankAccount ||
-            !files.panCard
-        ) {
-            toast.error("Please upload all required documents");
-            return false;
-        }
-        return true;
+    const handleFieldChange = (path, value) => {
+        setExtractedData((prev) =>
+            setNestedValue(prev, path, value)
+        );
     };
 
-    const submit = async () => {
-        if (!validateDocuments()) return;
+    const handleSubmit = async () => {
+        if (!temporaryUploadId || !extractedData) return;
 
         try {
-            setLoading(true);
-            setCurrentStep(5);
+            setSubmitting(true);
+            setDocStep(2);
 
-            toast.loading("Submitting KYC...", {
-                id: "submit-kyc",
+            await axiosInstance.post("/kyc/documents", {
+                temporaryUploadId,
+                metaData: extractedData,
             });
 
-            const formData = new FormData();
+            const updatedCompleted = [
+                ...completedDocs,
+                currentDoc.key,
+            ];
 
-            Object.entries(files).forEach(([k, v]) => {
-                formData.append(k, v);
-            });
+            setCompletedDocs(updatedCompleted);
 
-            formData.append(
-                "extractedData",
-                JSON.stringify(extractedData)
-            );
+            toast.success( `${currentDoc.label} submitted successfully` );
 
-            await axiosInstance.post("/kyc/submit", formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
+            if (isLastDoc) {
+                await fetchUserProfile();
+                setKycComplete(true);
+            } else {
+                resetDocState();
+                setDocIndex((prev) => prev + 1);
+            }
+        } catch (err) {
+            console.error(err);
 
-            setCurrentStep(6);
-
-            toast.success("KYC submitted successfully", {
-                id: "submit-kyc",
-            });
-
-            await fetchUserProfile();
-            navigate("/dashboard");
-        } catch (error) {
             toast.error(
-                error?.response?.data?.message || "Submission failed",
-                { id: "submit-kyc" }
+                err?.response?.data?.message ||
+                    "Submission failed"
             );
+
+            setDocStep(1);
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
-    const currentStatus = uploadStatus[selectedDoc];
+    const flatFields = extractedData
+        ? flattenObject(extractedData)
+        : [];
 
-    const formatLabel = (key) =>
-        key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
-
-    return (
-        <div className="min-h-screen bg-[#f4f7fb] flex items-center justify-center p-4">
-            <div className="w-full max-w-4xl rounded-[28px] bg-white shadow-2xl overflow-hidden">
-
-                {/* HEADER */}
-                <div className="px-8 py-7 border-b border-slate-200">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-[11px] uppercase text-blue-600 font-semibold mb-2">
-                                Secure Upload
-                            </p>
-                            <h1 className="text-3xl font-bold">Add KYC Document</h1>
+    if (kycComplete) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200">
+                    <div className="p-8 flex flex-col items-center text-center">
+                        <div className="h-20 w-20 rounded-full bg-green-500 flex items-center justify-center mb-6">
+                            <ShieldCheck className="h-10 w-10 text-white" />
                         </div>
 
-                        <button onClick={() => navigate(-1)}>
-                            <X />
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">  KYC Submitted </h2>
+                        <p className="text-sm text-slate-500 leading-relaxed">
+                            Your documents have been submitted successfully.
+                            Verification usually takes less than 24 hours.
+                        </p>
+                        <div className="w-full mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
+                            <div className="flex items-start gap-3">
+                                <Clock className="h-5 w-5 text-slate-500 mt-0.5 shrink-0" />
+
+                                <div>
+                                    <p className="text-sm font-medium text-slate-700">
+                                        Verification in Progress
+                                    </p>
+
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        You will receive an update once your
+                                        KYC is verified.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="w-full mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-xs uppercase tracking-wide text-slate-400 mb-3">
+                                Documents Submitted
+                            </p>
+
+                            <div className="space-y-2">
+                                {DOCUMENT_OPTIONS.map((doc) => (
+                                    <div
+                                        key={doc.key}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center">
+                                            <Check className="h-3 w-3 text-green-600" />
+                                        </div>
+
+                                        <span className="text-sm text-slate-600">
+                                            {doc.label}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 text-center">
+                            <p className="text-sm text-slate-600">
+                                Redirecting in {countdown}s
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                clearInterval(countdownRef.current);
+                                navigate("/");
+                            }}
+                            className="w-full h-11 mt-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center justify-center gap-2 text-sm"
+                        >
+                            <Home className="h-4 w-4" />
+                            Go to Homepage
                         </button>
                     </div>
-
-                    {/* STEPPER */}
-                    <div className="flex mt-8">
-                        {steps.map((step, index) => (
-                            <div key={step} className="flex items-center flex-1">
-                                <div
-                                    className={`h-8 w-8 rounded-full flex items-center justify-center ${currentStep >= index + 1
-                                            ? "bg-blue-600 text-white"
-                                            : "border text-slate-400"
-                                        }`}
-                                >
-                                    {currentStep > index + 1 ? (
-                                        <Check className="h-4 w-4" />
-                                    ) : (
-                                        index + 1
-                                    )}
-                                </div>
-
-                                <span className="text-xs ml-2 uppercase">
-                                    {step}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
                 </div>
+            </div>
+        );
+    }
 
-                {/* BODY */}
-                <div className="p-8">
+    return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-200">
 
-                    {/* DOC SELECT */}
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                        {documentOptions.map((doc) => (
-                            <button
-                                key={doc.key}
-                                onClick={() => setSelectedDoc(doc.key)}
-                                className={`p-3 border rounded-xl ${selectedDoc === doc.key
-                                        ? "bg-blue-50 border-blue-500"
-                                        : ""
-                                    }`}
-                            >
-                                {doc.label}
-                            </button>
-                        ))}
-                    </div>
+                <div className="px-8 py-6 border-b border-slate-100">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <p className="text-xs uppercase tracking-wide text-blue-500 font-medium mb-1">
+                                KYC Verification
+                            </p>
 
-                    {/* UPLOAD */}
-                    <label className="border-2 border-dashed rounded-3xl p-10 flex flex-col items-center cursor-pointer">
-                        <UploadCloud className="h-10 w-10 text-blue-500 mb-3" />
-
-                        <h3 className="text-lg font-semibold">
-                            {files[selectedDoc]?.name ||
-                                "Drop or upload file"}
-                        </h3>
-
-                        <input
-                            type="file"
-                            hidden
-                            accept=".pdf,.png,.jpg,.jpeg"
-                            onChange={(e) =>
-                                handleFileChange(e.target.files[0])
-                            }
-                        />
-                    </label>
-
-                    {/* PROGRESS */}
-                    {extracting && (
-                        <div className="mt-4">
-                            <div className="h-2 bg-gray-200 rounded">
-                                <div
-                                    className="h-2 bg-blue-600"
-                                    style={{ width: `${progress}%` }}
-                                />
-                            </div>
-                            <p className="text-xs mt-1">{progress}%</p>
+                            <h1 className="text-2xl font-bold text-slate-900">
+                                {currentDoc.label}
+                            </h1>
                         </div>
-                    )}
-
-                    {/* EXTRACTED */}
-                    {extractedData[selectedDoc] && (
-                        <div className="mt-6 border p-4 rounded-xl">
-                            {Object.entries(
-                                extractedData[selectedDoc]
-                            ).map(([k, v]) => (
-                                <div key={k} className="text-sm">
-                                    <b>{formatLabel(k)}:</b> {String(v)}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* FOOTER */}
-                    <div className="flex justify-between items-center mt-8 border-t border-slate-200 pt-6">
 
                         <button
                             onClick={() => navigate(-1)}
-                            className="h-11 px-5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition"
+                            className="p-2 rounded-full hover:bg-slate-100 text-slate-400"
                         >
-                            <ArrowLeft className="h-4 w-4" />
-                            Back
+                            <X className="h-5 w-5" />
                         </button>
-
-                        <button
-                            onClick={submit}
-                            disabled={loading || extracting}
-                            className="h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? (
-                                "Submitting..."
-                            ) : extracting ? (
-                                "Extracting..."
-                            ) : (
-                                <>
-                                    Submit
-                                    <ArrowRight className="h-4 w-4" />
-                                </>
-                            )}
-                        </button>
-
                     </div>
+
+                    <div className="flex items-center gap-2">
+                        {DOCUMENT_OPTIONS.map((doc, i) => {
+                            const isDone = completedDocs.includes(doc.key);
+                            const isCurrent = i === docIndex;
+
+                            return (
+                                <div
+                                    key={doc.key}
+                                    className="flex items-center flex-1"
+                                >
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div
+                                            className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold ${
+                                                isDone
+                                                    ? "bg-green-500 text-white"
+                                                    : isCurrent
+                                                    ? "bg-blue-600 text-white"
+                                                    : "border border-slate-300 text-slate-400"
+                                            }`}
+                                        >
+                                            {isDone ? (
+                                                <Check className="h-4 w-4" />
+                                            ) : (
+                                                i + 1
+                                            )}
+                                        </div>
+
+                                        <span className="text-[10px] text-slate-500 text-center">
+                                            {doc.label}
+                                        </span>
+                                    </div>
+
+                                    {i <
+                                        DOCUMENT_OPTIONS.length - 1 && (
+                                        <div className="flex-1 h-px bg-slate-200 mx-2 mb-5" />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="p-8">
+
+                    {docStep === 0 && !extracting && (
+                        <div
+                            onClick={() =>
+                                fileInputRef.current?.click()
+                            }
+                            className="border-2 border-dashed border-slate-300 rounded-2xl p-14 flex flex-col items-center cursor-pointer hover:bg-slate-50"
+                        >
+                            <UploadCloud className="h-12 w-12 text-blue-500 mb-4" />
+
+                            <p className="text-base font-semibold text-slate-700">
+                                Upload {currentDoc.label}
+                            </p>
+
+                            <p className="text-xs text-slate-400 mt-1">
+                                PDF, PNG, JPG · Max 10MB
+                            </p>
+
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                hidden
+                                accept=".pdf,.png,.jpg,.jpeg"
+                                onChange={handleFileChange}
+                            />
+                        </div>
+                    )}
+
+                    {extracting && (
+                        <div className="flex flex-col items-center py-12 gap-4">
+                            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+
+                            <p className="font-medium text-slate-700">
+                                Extracting document data...
+                            </p>
+
+                            <div className="w-full max-w-xs">
+                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-blue-600"
+                                        style={{
+                                            width: `${progress}%`,
+                                        }}
+                                    />
+                                </div>
+
+                                <p className="text-xs text-slate-400 mt-1 text-right">
+                                    {progress}%
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {submitting && (
+                        <div className="flex flex-col items-center py-12 gap-4">
+                            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+
+                            <p className="font-medium text-slate-700">
+                                Submitting {currentDoc.label}...
+                            </p>
+                        </div>
+                    )}
+
+                    {docStep === 1 &&
+                        !submitting &&
+                        extractedData && (
+                            <>
+                                <div className="mb-5">
+                                    <p className="font-semibold text-slate-800">
+                                        Review Extracted Data
+                                    </p>
+
+                                    <p className="text-sm text-slate-400">
+                                        Edit incorrect fields before
+                                        submission
+                                    </p>
+                                </div>
+
+                                {file && (
+                                    <div className="flex items-center gap-2 mb-5 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                                        <Check className="h-4 w-4 text-green-500" />
+
+                                        <span className="text-sm text-slate-600 truncate">
+                                            {file.name}
+                                        </span>
+
+                                        <button
+                                            onClick={resetDocState}
+                                            className="ml-auto text-xs text-slate-500"
+                                        >
+                                            Change file
+                                        </button>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {flatFields.map(([path, value]) => {
+                                        const label = path
+                                            .split(".")
+                                            .map(formatLabel)
+                                            .join(" › ");
+
+                                        const strVal =
+                                            value === null ||
+                                            value === undefined
+                                                ? ""
+                                                : String(value);
+
+                                        return (
+                                            <div key={path}>
+                                                <label className="block text-xs text-slate-500 mb-1">
+                                                    {label}
+                                                </label>
+
+                                                <input
+                                                    type="text"
+                                                    value={strVal}
+                                                    onChange={(e) =>
+                                                        handleFieldChange(
+                                                            path,
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                    className="w-full h-10 rounded-xl border border-slate-300 px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+
+                    {!extracting && !submitting && (
+                        <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
+                            <button
+                                onClick={
+                                    docStep === 1
+                                        ? resetDocState
+                                        : () => navigate(-1)
+                                }
+                                className="h-11 px-5 rounded-xl border border-slate-300 text-slate-600 flex items-center gap-2 text-sm"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+
+                                {docStep === 1
+                                    ? "Re-upload"
+                                    : "Back"}
+                            </button>
+
+                            {docStep === 1 && (
+                                <button
+                                    onClick={handleSubmit}
+                                    className="h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-sm"
+                                >
+                                    {isLastDoc
+                                        ? "Submit & Finish"
+                                        : "Submit & Continue"}
+
+                                    <ArrowRight className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="px-8 pb-6 text-center">
+                    <p className="text-xs text-slate-400">
+                        Document {docIndex + 1} of{" "}
+                        {DOCUMENT_OPTIONS.length}
+                    </p>
                 </div>
             </div>
         </div>
