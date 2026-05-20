@@ -3,11 +3,28 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, FileCheck2, Gauge, Handshake, Building2, Share2, ScrollText, Settings,
-  Users, ShieldCheck, AlertOctagon, ClipboardList, BarChart3,
-  Globe2, Bell, Search, User, LogOut,
+  LayoutDashboard,
+  FileCheck2,
+  Gauge,
+  Handshake,
+  Building2,
+  Share2,
+  ScrollText,
+  Settings,
+  Users,
+  ShieldCheck,
+  AlertOctagon,
+  ClipboardList,
+  BarChart3,
+  Globe2,
+  Bell,
+  Search,
+  User,
+  LogOut,
   Lock,
+  FileUp,
 } from "lucide-react";
+
 import ChangePassword from "@/pages/ChnagePassword";
 
 const businessNav = [
@@ -41,7 +58,12 @@ export function AppShell({ kind, children }) {
 
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const businessName = business?.legalName || user?.businessName || user?.name || "User";
+  const businessName =
+    business?.legalName ||
+    user?.businessName ||
+    user?.name ||
+    "User";
+
   const email = user?.email || "";
 
   useEffect(() => {
@@ -49,15 +71,19 @@ export function AppShell({ kind, children }) {
   }, [pathname]);
 
   const handleLogout = () => {
-    logout?.();               
-    setProfileOpen(false);    
+    logout?.();
+    setProfileOpen(false);
     navigate("/");
   };
-
 
   const handleChangePassword = () => {
     setProfileOpen(false);
     navigate("/change-password");
+  };
+
+  const handleKycSubmit = () => {
+    setProfileOpen(false);
+    navigate("/kyc-submit");
   };
 
   return (
@@ -70,8 +96,12 @@ export function AppShell({ kind, children }) {
           <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-cyan-glow grid place-items-center shadow-glow">
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
+
           <div>
-            <div className="font-display font-semibold text-sm">{businessName}</div>
+            <div className="font-display font-semibold text-sm">
+              {businessName}
+            </div>
+
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               {kind === "admin" ? "Admin Console" : "Business OS"}
             </div>
@@ -114,13 +144,14 @@ export function AppShell({ kind, children }) {
 
           <div className="flex-1 max-w-md relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
             <input
               placeholder="Search businesses, deals, documents…"
               className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900/[0.03] border text-sm"
             />
           </div>
 
-          <div className="flex items-center gap-2 ml-auto ">
+          <div className="flex items-center gap-2 ml-auto">
 
             <button className="h-9 w-9 grid place-items-center cursor-pointer rounded-xl glass">
               <Globe2 className="h-4 w-4 text-muted-foreground" />
@@ -128,6 +159,7 @@ export function AppShell({ kind, children }) {
 
             <button className="h-9 w-9 grid place-items-center rounded-xl cursor-pointer glass relative">
               <Bell className="h-4 w-4 text-muted-foreground" />
+
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-cyan-glow" />
             </button>
 
@@ -141,13 +173,38 @@ export function AppShell({ kind, children }) {
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white border rounded-xl shadow-lg overflow-hidden z-50">
+                <div className="absolute right-0 mt-2 w-56 bg-white border rounded-xl shadow-lg overflow-hidden z-50">
 
+                  {/* User Info */}
                   <div className="px-3 py-2 border-b">
-                    <p className="text-sm font-medium truncate">{businessName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{email}</p>
+                    <p className="text-sm font-medium truncate">
+                      {businessName}
+                    </p>
+
+                    <p className="text-xs text-muted-foreground truncate">
+                      {email}
+                    </p>
                   </div>
 
+                  {/* Change Password */}
+                  <button
+                    onClick={handleChangePassword}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700 border-b"
+                  >
+                    <Lock className="h-4 w-4" />
+                    Change Password
+                  </button>
+
+                  {/* KYC Submit */}
+                  <button
+                    onClick={handleKycSubmit}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700 border-b"
+                  >
+                    <FileUp className="h-4 w-4" />
+                    KYC Document Submit
+                  </button>
+
+                  {/* Logout */}
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-red-50 text-red-600"
@@ -156,13 +213,6 @@ export function AppShell({ kind, children }) {
                     Logout
                   </button>
 
-                  <button 
-                     onClick={handleChangePassword}
-                     className="w-full flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 text-slate-700 border-b"
-                   >
-                    <Lock  className="h-4 w-4" />
-                    Change Password 
-                   </button>
                 </div>
               )}
 

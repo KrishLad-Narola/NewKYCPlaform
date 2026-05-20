@@ -1,7 +1,8 @@
 import axios from "axios";
 import { toast } from "sonner";
 
-const axiosInstance = axios.create({
+const 
+axiosInstance = axios.create({
   baseURL: "http://192.168.100.149:3000/api/v1",
   headers: {
     "Content-Type": "application/json",

@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Link, Navigate, Outlet } from "react-router-dom";
+import { Routes, Route, Link, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -40,14 +40,12 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 
 import PublicRoutes from "./routes/PublicRoutes";
 
-
+/* ---------------- NOT FOUND ---------------- */
 function NotFoundPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">
-          404
-        </h1>
+        <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">
           Page not found
         </h2>
@@ -67,7 +65,6 @@ function NotFoundPage() {
   );
 }
 
-
 function ProtectedRoute() {
   const { isAuthenticated, loading } = useAuth();
 
@@ -86,6 +83,29 @@ function ProtectedRoute() {
   return <Outlet />;
 }
 
+function KycGuard() {
+  const { user, business, loading } = useAuth(); 
+  const navigate = useNavigate();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (business?.kycStatus === "DRAFT" || business?.kycStatus === "PENDING_DOCUMENTS") {
+    return <Navigate to="/kyc-submit" replace />;
+  }
+
+  return <Outlet />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -98,30 +118,38 @@ function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
+      {/* AUTHENTICATED ROUTES */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/profile/:id" element={<ProfilePage />} />
-        <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/kyc-submit" element={<KycSubmitPage />} />
 
-        <Route path="/dashboard" element={<DashboardLayout />}>
-          <Route index element={<DashboardHome />} />
-          <Route path="kyc" element={<KycPage />} />
-          <Route path="trust" element={<TrustPage />} />
-          <Route path="deals" element={<DealsPage />} />
-          <Route path="directory" element={<DirectoryPage />} />
-          <Route path="shared" element={<SharedPage />} />
-          <Route path="audit" element={<AuditPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
+        {/* AFTER KYC CHECK */}
+        <Route element={<KycGuard />}>
+          {/* User Pages */}
+          <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/change-password" element={<ChangePassword />} />
 
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminHome />} />
-          <Route path="businesses" element={<AdminBusinesses />} />
-          <Route path="kyc" element={<AdminKyc />} />
-          <Route path="trust" element={<AdminTrust />} />
-          <Route path="disputes" element={<AdminDisputes />} />
-          <Route path="audit" element={<AdminAudit />} />
-          <Route path="settings" element={<AdminSettings />} />
+          {/* Dashboard */}
+          <Route path="/dashboard" element={<DashboardLayout />}>
+            <Route index element={<DashboardHome />} />
+            <Route path="kyc" element={<KycPage />} />
+            <Route path="trust" element={<TrustPage />} />
+            <Route path="deals" element={<DealsPage />} />
+            <Route path="directory" element={<DirectoryPage />} />
+            <Route path="shared" element={<SharedPage />} />
+            <Route path="audit" element={<AuditPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
+          {/* Admin */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminHome />} />
+            <Route path="businesses" element={<AdminBusinesses />} />
+            <Route path="kyc" element={<AdminKyc />} />
+            <Route path="trust" element={<AdminTrust />} />
+            <Route path="disputes" element={<AdminDisputes />} />
+            <Route path="audit" element={<AdminAudit />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
         </Route>
       </Route>
 

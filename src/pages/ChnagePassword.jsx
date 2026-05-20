@@ -7,6 +7,7 @@ import {
     Lock,
     Eye,
     EyeOff,
+    ClockFading,
 } from "lucide-react";
 
 import axios from "axios";
@@ -19,16 +20,16 @@ const changePasswordSchema = z
     .object({
 
         currentPassword:z.string().trim(),
-        password: z
+        newPassword: z
             .string()
             .trim()
             .min(6, "Password must be at least 6 characters"),
 
         confirmPassword: z.string().trim(),
 
-        token: z.string().min(1, "Invalid reset link"),
+        
     })
-    .refine((data) => data.password === data.confirmPassword, {
+    .refine((data) => data.newPassword === data.confirmPassword, {
         message: "Passwords do not match",
         path: ["confirmPassword"],
     });
@@ -45,6 +46,7 @@ export default function ChangePassword() {
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
+        
     });
 
     const [showPassword, setShowPassword] = useState({
@@ -74,8 +76,8 @@ export default function ChangePassword() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const validation = passwordSchema.safeParse(formData);
-
+        const validation = changePasswordSchema.safeParse(formData);
+        console.log(formData);
         if (!validation.success) {
             const errors = validation.error.flatten();
 
@@ -111,6 +113,7 @@ export default function ChangePassword() {
                 currentPassword: "",
                 newPassword: "",
                 confirmPassword: "",
+                
             });
 
             navigate("/dashboard");
