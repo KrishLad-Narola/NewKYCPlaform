@@ -39,8 +39,8 @@ import AdminAudit from "@/pages/admin/AdminAudit";
 import AdminSettings from "@/pages/admin/AdminSettings";
 
 import PublicRoutes from "./routes/PublicRoutes";
+import KycCompletePage from "./pages/kycComplete";
 
-/* ---------------- NOT FOUND ---------------- */
 function NotFoundPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -84,28 +84,39 @@ function ProtectedRoute() {
 }
 
 function KycGuard() {
-  const { user, business, loading } = useAuth(); 
-  const navigate = useNavigate();
+  const { user, business, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
-  if (business?.kycStatus === "DRAFT" || business?.kycStatus === "PENDING_DOCUMENTS") {
+  const kycStatus = business?.kycStatus?.trim()?.toUpperCase();
+  
+  if (
+    !kycStatus ||
+    kycStatus === "DRAFT" ||
+    kycStatus === "PENDING_DOCUMENTS"
+  ) {
+    return <Navigate to="/kyc-submit" replace />;
+  }
+  else if (
+    kycStatus === "SUBMITTED" ||
+    kycStatus === "UNDER_REVIEW"
+  ) {
+    return <Navigate to="/kyc-complete" replace />;
+  }
+  if (kycStatus === "APPROVED") {
+    return <Outlet />;
+  }
+  else if (kycStatus === "REJECTED") {
     return <Navigate to="/kyc-submit" replace />;
   }
 
-  return <Outlet />;
 }
-
 function AppRoutes() {
   return (
     <Routes>
@@ -120,12 +131,13 @@ function AppRoutes() {
 
       {/* AUTHENTICATED ROUTES */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/kyc-submit" element={<KycSubmitPage />} />
 
-        {/* AFTER KYC CHECK */}
+        {/* KYC Pages */}
+        <Route path="/kyc-submit" element={<KycSubmitPage />} />
+        <Route path="/kyc-complete" element={<KycCompletePage />} />
+
         <Route element={<KycGuard />}>
-          {/* User Pages */}
-          <Route path="/profile/:id" element={<ProfilePage />} />
+        {/* Protected App */}
           <Route path="/change-password" element={<ChangePassword />} />
 
           {/* Dashboard */}

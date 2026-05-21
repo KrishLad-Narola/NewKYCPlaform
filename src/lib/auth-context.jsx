@@ -95,6 +95,8 @@ export function AuthProvider({ children }) {
     }
   };
 
+  
+
   return (
     <Ctx.Provider
       value={{
@@ -104,6 +106,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         fetchUserProfile,
+        logoutLocal,
         isAuthenticated: !!user,
       }}
     >

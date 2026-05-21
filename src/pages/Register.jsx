@@ -18,14 +18,12 @@ const steps = ["Company", "Account"];
 
 const registerSchema = z
   .object({
-    
-
-    BusinessName: z
+    businessName: z
       .string()
       .trim()
       .min(2, "Business name is required"),
 
-    BusinessType: z
+    businessType: z
       .string()
       .trim()
       .min(2, "Business type is required"),
@@ -34,6 +32,12 @@ const registerSchema = z
       .string()
       .trim()
       .min(2, "Industry is required"),
+
+    registeredPhone: z
+      .string()
+      .trim()
+      .length(10, "Registered Phone must be exactly 10 digits")
+      .regex(/^\d+$/, "Registered Phone must contain only numbers"),
 
     firstname: z
       .string()
@@ -67,17 +71,14 @@ const registerSchema = z
 
 export default function Register() {
   const [step, setStep] = useState(0);
-
   const navigate = useNavigate();
-
   const [errors, setErrors] = useState({});
-
   const [showPassword, setShowPassword] = useState(false);
-
   const [form, setForm] = useState({
-    BusinessName:"",
-    BusinessType: "private_limited",
+    businessName: "",
+    businessType: "private_limited",
     industry: "",
+    registeredPhone: "",
     firstname: "",
     lastname: "",
     email: "",
@@ -111,9 +112,10 @@ export default function Register() {
   const handleNext = () => {
     const currentStepFields = {
       0: [
-        "BusinessName",
-        "BusinessType",
+        "businessName",
+        "businessType",
         "industry",
+        "registeredPhone",
       ],
 
       1: [
@@ -148,7 +150,7 @@ export default function Register() {
 
         toast.error(
           Object.values(stepErrors)[0]?.[0] ||
-            "Please fix errors"
+          "Please fix errors"
         );
 
         return;
@@ -159,7 +161,6 @@ export default function Register() {
     next();
   };
 
-  // DOWNLOAD PDF FUNCTION
   const downloadPDF = () => {
     const result = registerSchema.safeParse(form);
 
@@ -178,9 +179,10 @@ export default function Register() {
     doc.setFontSize(12);
 
     const details = [
-      ["Business Name", form.BusinessName],
-      ["Business Type", form.BusinessType],
+      ["Business Name", form.businessName],
+      ["Business Type", form.businessType],
       ["Industry", form.industry],
+      ["Registered Phone", form.registeredPhone],
       ["First Name", form.firstname],
       ["Last Name", form.lastname],
       ["Email", form.email],
@@ -194,7 +196,7 @@ export default function Register() {
     });
 
     doc.save(
-      `${form.BusinessName || "business"}-registration.pdf`
+      `${form.businessName || "business"}-registration.pdf`
     );
 
     toast.success("PDF downloaded successfully");
@@ -210,7 +212,7 @@ export default function Register() {
 
       toast.error(
         Object.values(fieldErrors)[0]?.[0] ||
-          "Validation failed"
+        "Validation failed"
       );
 
       return;
@@ -220,20 +222,14 @@ export default function Register() {
       await axios.post(
         "http://192.168.100.149:3000/api/v1/businesses/onboard",
         {
-          legalName: form.BusinessName,
-
-          companyType: form.BusinessType.toUpperCase(),
-
+          businessName: form.businessName,
+          companyType: form.businessType.toUpperCase(),
           industry: form.industry,
-
+          registeredPhone: form.registeredPhone,
           firstName: form.firstname,
-
           lastName: form.lastname,
-
           email: form.email,
-
           password: form.password,
-
           confirmPassword: form.confirmPassword,
         }
       );
@@ -244,7 +240,7 @@ export default function Register() {
     } catch (err) {
       toast.error(
         err?.response?.data?.message ||
-          "Registration failed"
+        "Registration failed"
       );
     }
   };
@@ -285,13 +281,12 @@ export default function Register() {
               className="flex items-center gap-3 flex-1"
             >
               <div
-                className={`h-8 w-8 rounded-full grid place-items-center text-xs font-mono border transition-all ${
-                  i < step
-                    ? "bg-success text-white border-success"
-                    : i === step
+                className={`h-8 w-8 rounded-full grid place-items-center text-xs font-mono border transition-all ${i < step
+                  ? "bg-success text-white border-success"
+                  : i === step
                     ? "bg-gradient-to-br from-primary to-cyan-glow text-white border-transparent shadow-glow"
                     : "border-slate-900/[0.08] text-muted-foreground"
-                }`}
+                  }`}
               >
                 {i < step ? (
                   <Check className="h-4 w-4" />
@@ -318,11 +313,10 @@ export default function Register() {
 
               {i < steps.length - 1 && (
                 <div
-                  className={`flex-1 h-px ${
-                    i < step
-                      ? "bg-success/50"
-                      : "bg-slate-900/[0.06]"
-                  }`}
+                  className={`flex-1 h-px ${i < step
+                    ? "bg-success/50"
+                    : "bg-slate-900/[0.06]"
+                    }`}
                 />
               )}
             </div>
@@ -343,9 +337,9 @@ export default function Register() {
               <>
                 <Input
                   label="Business Name"
-                  value={form.BusinessName}
+                  value={form.businessName}
                   onChange={(v) =>
-                    set("BusinessName", v)
+                    set("businessName", v)
                   }
                   error={errors?.BusinessName?.[0]}
                 />
@@ -353,7 +347,7 @@ export default function Register() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Select
                     label="Business Type"
-                    value={form.BusinessType}
+                    value={form.businessType}
                     onChange={(v) =>
                       set("BusinessType", v)
                     }
@@ -393,6 +387,16 @@ export default function Register() {
                     error={errors?.industry?.[0]}
                   />
                 </div>
+
+                <Input
+                  label="Registered Phone"
+                  value={form.registeredPhone}
+                  onChange={(v) => {
+                  const value = v.replace(/\D/g, "").slice(0, 10);
+                    set("registeredPhone", value);
+                  }}
+                  error={errors?.registeredPhone?.[0]}
+                />
               </>
             )}
 
@@ -551,11 +555,10 @@ function Input({
         type={type}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className={`mt-1.5 w-full px-4 py-2.5 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none ${
-          error
-            ? "border-red-500 focus:ring-1 focus:ring-red-500"
-            : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-        }`}
+        className={`mt-1.5 w-full px-4 py-2.5 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none ${error
+          ? "border-red-500 focus:ring-1 focus:ring-red-500"
+          : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+          }`}
       />
 
       {error && (
@@ -584,11 +587,10 @@ function Select({
         <select
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full px-4 py-2.5 pr-10 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none appearance-none ${
-            error
-              ? "border-red-500 focus:ring-1 focus:ring-red-500"
-              : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-          }`}
+          className={`w-full px-4 py-2.5 pr-10 rounded-xl bg-slate-900/[0.03] border transition focus:outline-none appearance-none ${error
+            ? "border-red-500 focus:ring-1 focus:ring-red-500"
+            : "border-slate-900/[0.08] focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+            }`}
         >
           <option value="" disabled>
             Select {label}
